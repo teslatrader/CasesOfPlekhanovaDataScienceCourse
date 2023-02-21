@@ -56,6 +56,7 @@ print_stars_sep()
 min_per_call = pd.DataFrame()
 min_per_call = calls.copy()
 min_per_call.drop(columns=['Duration', 'Seconds'], inplace=True)
+min_per_call.columns = ['Call datetime', 'Operator', 'Duration']
 print(f'\nДатафрейм с агрегацией минут по звонкам\n')
 print(min_per_call.tail())
 
@@ -77,14 +78,129 @@ print(f'\nДатафрейм с агрегацией минут по месяц�
 print(min_per_month)
 print_stars_sep()
 
-# Создаем датафрейм с агрегацией минут по звонкам кроме звонков на МТС (кейс МТС)
-min_per_call_mts = min_per_call.copy()
-min_per_call_mts.columns = ['Call datetime', 'Operator', 'Duration']
-min_per_call_mts['Duration'] = min_per_call_mts.apply(lambda x: 0 if x['Operator'] == 'мтс' else x['Duration'], axis=1)
-min_per_call_mts = min_per_call_mts[min_per_call_mts['Duration'] > 0]
-min_per_call_mts.reset_index(inplace=True, drop=True)
+# Создаем датафрейм с агрегацией минут по звонкам кроме звонков на МТС
+temp = min_per_call_mts = pd.DataFrame()
+temp = min_per_call.copy()
+temp.columns = ['Call datetime', 'Operator', 'Duration']
+temp['Duration'] = temp.apply(lambda x: 0 if x['Operator'] == 'мтс' else x['Duration'], axis=1)
+temp = temp[temp['Duration'] > 0]
+temp.drop(columns=['Operator'], inplace=True)
+min_per_call_mts['Duration'] = temp.groupby(temp['Call datetime'].dt.date)['Duration'].sum()
+min_per_call_mts.reset_index(inplace=True)
+
 print(f'\nДатафрейм с агрегацией минут по звонкам кроме звонков на МТС\n')
-print(min_per_call_mts.tail())
+print(min_per_call_mts)
+print(min_per_call_mts.shape)
+
+def GetMonstrOfTalk(data: list) -> float:
+    cost_0_1_min = 1.5
+    cost_2_9_min = 0.5
+    cost_10_plus_min = 1.0
+    result = 0.0
+
+    def GetCostFirstMinute():
+        return cost_0_1_min
+
+    def GetCostTwoNineMinutes(minutes_total=9):
+        minutes_total -= 1
+        return GetCostFirstMinute() + minutes_total * cost_2_9_min
+
+    def GetCostTenPlusMinutes(minutes_total):
+        minutes_total -= 9
+        return GetCostTwoNineMinutes() + minutes_total * cost_10_plus_min
+
+    for value in data:
+        if value <= 1:
+            result += GetCostFirstMinute()
+        elif 2 <= value <= 9:
+            result += GetCostTwoNineMinutes(value)
+        elif 10 <= value:
+            result += GetCostTenPlusMinutes(value)
+    return round(result, 2)
+
+def GetWantToTell(data: list) -> float:
+    cost_0_5_min = 3.95
+    cost_6_plus_min = 0.4
+    result = 0.0
+
+    def GetCostFiveMinutes(minutes_total=5):
+        return minutes_total * cost_0_5_min
+
+    def GetCostSixPlusMinutes(minutes_total):
+        minutes_total -= 5
+        return GetCostFiveMinutes() + minutes_total * cost_6_plus_min
+
+    for value in data:
+        if value <= 5:
+            result += GetCostFiveMinutes(value)
+        else:
+            result += GetCostSixPlusMinutes(value)
+
+    return round(result, 2)
+
+def GetMoreWords(data: list) -> float:
+    cost_monthly_fee = 555              # абонентская плата
+    cost_exceeded_min = 1.95            # стоимость минуты превышающей лимит на месяц в 555 минут включительно
+    result = 0.0
+
+    for value in data:
+        result += 555 + (0 if value <= 555 else ((value - 555) * cost_exceeded_min))
+
+    return round(result, 2)
+
+def GetMegafon(data: list) -> float:
+    cost_0_1_min = 1
+    cost_2_plus_min = 0.33
+    result = 0.0
+
+    def GetCostFirstMinute():
+        return cost_0_1_min
+
+    def GetCostTwoPlusMinutes(minutes_total):
+        minutes_total -= 1
+        return GetCostFirstMinute() + minutes_total * cost_2_plus_min
+
+    for value in data:
+        if value <= 1:
+            result += GetCostFirstMinute()
+        else:
+            result += GetCostTwoPlusMinutes(value)
+
+    return round(result, 2)
+
+def GetMTS(data: list) -> float:
+    cost_0_5_min = 0.9
+    cost_6_30_min = 0.05
+    cost_30_plus = 0.9
+    result = 0.0
+
+    def GetCostFirstFiveMinutes(minutes_total=5):
+        return minutes_total * cost_0_5_min
+
+    def GetCostSixThirtyMinutes(minutes_total=30):
+        minutes_total -= 5
+        return GetCostFirstFiveMinutes() + minutes_total * cost_6_30_min
+
+    def GetCostThirtyPlusMinutes(minutes_total):
+        minutes_total -= 30
+        return GetCostSixThirtyMinutes() + minutes_total * cost_30_plus
+
+    for value in data:
+        if value <= 5:
+            result += GetCostFirstFiveMinutes(value)
+        elif 6 <= value <= 30:
+            result += GetCostSixThirtyMinutes(value)
+        elif 31 <= value:
+            result += GetCostThirtyPlusMinutes(value)
+
+    return round(result, 2)
+
+# Считаем затраты по тарифам
+beeline_monstr_of_talk = GetMonstrOfTalk(min_per_call['Duration'].to_list())
+beeline_want_to_tell = GetWantToTell(min_per_day['Duration'].to_list())
+beeline_more_words = GetMoreWords(min_per_month['Duration'].to_list())
+megafon = GetMegafon(min_per_call['Duration'].to_list())
+mts = GetMTS(min_per_call_mts['Duration'].to_list())
 
 
 
