@@ -65,7 +65,7 @@ print(min_per_call.tail())
 min_per_day = pd.DataFrame()
 min_per_day['Duration'] = calls.groupby(calls['Call datetime'].dt.date)['Minutes'].sum()
 min_per_day.reset_index(inplace=True)
-min_per_day.columns = ['Date', 'Duration']
+min_per_day.columns = ['Call datetime', 'Duration']
 print(f'\nДатафрейм с агрегацией минут по дням\n')
 print(min_per_day.tail())
 print_stars_sep()
@@ -159,7 +159,7 @@ def GetMegafon(data: list) -> float:
 
     def GetCostTwoPlusMinutes(minutes_total):
         minutes_total -= 1
-        return GetCostFirstMinute() + minutes_total * cost_2_plus_min
+        return round(GetCostFirstMinute() + minutes_total * cost_2_plus_min, 2)
 
     for value in data:
         if value <= 1:
@@ -211,14 +211,7 @@ print(result_df)
 print_stars_sep()
 
 # Рисуем графики
-# Основной
 fig = px.bar(x=result_df.columns, y=result_df.values[-1], title='Сравнение расходов на мобильную связь по возможным тарифам')
 fig.update_xaxes(title='Тарифы')
 fig.update_yaxes(title='Расходы, руб.')
 fig.show()
-
-# График расходов помесячно
-
-
-
-
