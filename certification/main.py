@@ -21,6 +21,7 @@
 
 import pandas as pd
 import math
+import plotly.express as px
 
 def print_stars_sep():
     """Вспомогательная функция для красивого принта отступов"""
@@ -90,7 +91,7 @@ min_per_call_mts.reset_index(inplace=True)
 
 print(f'\nДатафрейм с агрегацией минут по звонкам кроме звонков на МТС\n')
 print(min_per_call_mts)
-print(min_per_call_mts.shape)
+print_stars_sep()
 
 def GetMonstrOfTalk(data: list) -> float:
     cost_0_1_min = 1.5
@@ -195,13 +196,28 @@ def GetMTS(data: list) -> float:
 
     return round(result, 2)
 
-# Считаем затраты по тарифам
-beeline_monstr_of_talk = GetMonstrOfTalk(min_per_call['Duration'].to_list())
-beeline_want_to_tell = GetWantToTell(min_per_day['Duration'].to_list())
-beeline_more_words = GetMoreWords(min_per_month['Duration'].to_list())
-megafon = GetMegafon(min_per_call['Duration'].to_list())
-mts = GetMTS(min_per_call_mts['Duration'].to_list())
+# Считаем затраты по тарифам и агрегируем в датафрейм
+results = {
+    'Билайн - Монстр общения': [GetMonstrOfTalk(min_per_call['Duration'].to_list())],
+    'Билайн - Хочу сказать': [GetWantToTell(min_per_day['Duration'].to_list())],
+    'Билайн - Больше слов': [GetMoreWords(min_per_month['Duration'].to_list())],
+    'Мегафон - 33 копейки': [GetMegafon(min_per_call['Duration'].to_list())],
+    'МТС - Много звонков': [GetMTS(min_per_call_mts['Duration'].to_list())]
+}
 
+result_df = pd.DataFrame(data=results)
+result_df.sort_values(by=0, axis=1, inplace=True)
+print(result_df)
+print_stars_sep()
+
+# Рисуем графики
+# Основной
+fig = px.bar(x=result_df.columns, y=result_df.values[-1], title='Сравнение расходов на мобильную связь по возможным тарифам')
+fig.update_xaxes(title='Тарифы')
+fig.update_yaxes(title='Расходы, руб.')
+fig.show()
+
+# График расходов помесячно
 
 
 
